@@ -19,7 +19,7 @@ scaled = scaler.transform(features)
 
 # AE load
 input_dim = scaled.shape[1]
-ae = DeepAE(input_dim=input_dim, latent_dim=32).to(device)
+ae = DeepAE(input_dim=input_dim, latent_dim=64).to(device)
 ae.load_state_dict(torch.load("models/autoencoder.pt", map_location=device))
 ae.eval()
 
@@ -39,3 +39,6 @@ total = len(pred)
 
 print(f"[NORMAL TEST] False positives = {tp}/{total}")
 print(f"False Positive Rate = {tp/total:.4f}")
+
+
+

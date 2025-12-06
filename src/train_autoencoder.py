@@ -13,7 +13,8 @@ X_normal = X[y == 0]
 X_t = torch.tensor(X_normal, dtype=torch.float32).to(device)
 
 input_dim = X.shape[1]
-model = DeepAE(input_dim=input_dim, latent_dim=32).to(device)
+model = DeepAE(input_dim=input_dim, latent_dim=64).to(device)
+
 
 opt = torch.optim.Adam(model.parameters(), lr=0.001)
 loss_fn = nn.MSELoss()
