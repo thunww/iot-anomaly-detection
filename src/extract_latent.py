@@ -9,7 +9,7 @@ X_test  = np.load("data/processed/test_features.npy")
 
 input_dim = X_train.shape[1]
 
-model = DeepAE(input_dim=input_dim, latent_dim=128).to(device)
+model = DeepAE(input_dim=input_dim, latent_dim=64).to(device)
 
 model.load_state_dict(torch.load("models/autoencoder.pt", map_location=device))
 model.eval()
