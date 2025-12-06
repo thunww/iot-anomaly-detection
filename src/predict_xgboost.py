@@ -19,7 +19,7 @@ scaler = joblib.load("models/scaler.pkl")
 scaled = scaler.transform(features)
 
 input_dim = scaled.shape[1]
-ae = DeepAE(input_dim=input_dim, latent_dim=64).to(device)
+ae = DeepAE(input_dim=input_dim, latent_dim=128).to(device)
 ae.load_state_dict(torch.load("models/autoencoder.pt", map_location=device))
 ae.eval()
 

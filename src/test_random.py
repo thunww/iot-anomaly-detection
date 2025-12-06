@@ -8,19 +8,30 @@ import xgboost as xgb
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# =============================
+# LOAD RANDOM SAMPLES
+# =============================
 df = pd.read_csv("data/raw/Train_Test_IoT_Modbus.csv")
-df_sample = df.sample(100)    # random
+df_sample = df.sample(100, random_state=42)
 df2 = create_features(df_sample.copy())
 
 labels = df_sample["label"].values
-features = df2.drop(columns=["date", "time", "type", "label"])
 
+features = df2.drop(columns=[
+    "date", "time", "type", "timestamp", "delta", "label"
+])
+
+# =============================
+# SCALING
+# =============================
 scaler = joblib.load("models/scaler.pkl")
 scaled = scaler.transform(features)
 
-# AE
+# =============================
+# AUTOENCODER
+# =============================
 input_dim = scaled.shape[1]
-ae = DeepAE(input_dim=input_dim, latent_dim=64).to(device)
+ae = DeepAE(input_dim=input_dim, latent_dim=128).to(device)
 ae.load_state_dict(torch.load("models/autoencoder.pt", map_location=device))
 ae.eval()
 
@@ -28,14 +39,19 @@ X = torch.tensor(scaled, dtype=torch.float32).to(device)
 with torch.no_grad():
     z = ae.encoder(X).cpu().numpy()
 
-# XGB
+# =============================
+# XGBOOST
+# =============================
 model = xgb.XGBClassifier()
 model.load_model("models/xgboost.json")
 
 pred = model.predict(z)
 
+# =============================
+# PRINT 100 ROW PREDICTIONS
+# =============================
 for i in range(100):
-    print(f"Row {i}:  True={labels[i]}  Pred={pred[i]}")
+    print(f"Row {i}: True={labels[i]} Pred={pred[i]}")
 
 acc = np.sum(pred == labels) / 100
-print("\nAccuracy on 100 random samples =", acc)
+print("\nAccuracy on 100 Random Samples =", acc)

@@ -8,37 +8,50 @@ import xgboost as xgb
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+# =============================
+# LOAD DATA (ONLY NORMAL)
+# =============================
 df = pd.read_csv("data/raw/Train_Test_IoT_Modbus.csv")
-df = df[df["label"] == 0]        # chỉ lấy NORMAL
+df = df[df["label"] == 0]               # chỉ NORMAL
 df2 = create_features(df.copy())
-features = df2.drop(columns=["date", "time", "type", "label"])
 
-# Load scaler
+# chọn đúng feature columns (không lấy timestamp/delta)
+features = df2.drop(columns=[
+    "date", "time", "type", "timestamp", "delta", "label"
+])
+
+# =============================
+# LOAD SCALER
+# =============================
 scaler = joblib.load("models/scaler.pkl")
 scaled = scaler.transform(features)
 
-# AE load
+# =============================
+# LOAD AUTOENCODER
+# =============================
 input_dim = scaled.shape[1]
-ae = DeepAE(input_dim=input_dim, latent_dim=64).to(device)
+ae = DeepAE(input_dim=input_dim, latent_dim=128).to(device)
 ae.load_state_dict(torch.load("models/autoencoder.pt", map_location=device))
 ae.eval()
 
-# Encode latent
 X = torch.tensor(scaled, dtype=torch.float32).to(device)
 with torch.no_grad():
     z = ae.encoder(X).cpu().numpy()
 
-# XGBoost load
+# =============================
+# LOAD XGBOOST
+# =============================
 model = xgb.XGBClassifier()
 model.load_model("models/xgboost.json")
 
+# =============================
+# INFERENCE
+# =============================
 pred = model.predict(z)
 
-tp = np.sum(pred == 1)   # bị báo "ATTACK" nhầm
+# NORMAL predicted as ATTACK = False Positive
+fp = np.sum(pred == 1)
 total = len(pred)
 
-print(f"[NORMAL TEST] False positives = {tp}/{total}")
-print(f"False Positive Rate = {tp/total:.4f}")
-
-
-
+print(f"[NORMAL TEST] False Positives = {fp}/{total}")
+print(f"False Positive Rate = {fp/total:.4f}")
