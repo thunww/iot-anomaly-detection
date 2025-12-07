@@ -7,7 +7,7 @@ import torch
 import plotly.express as px
 
 # =====================================================
-# FIX PYTHONPATH để import src/*
+# FIX PYTHONPATH: import src/*
 # =====================================================
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
@@ -18,13 +18,14 @@ from src.hybrid.hybrid_detector import HybridDetector
 
 
 # =====================================================
-# SETUP PAGE
+# PAGE CONFIG
 # =====================================================
 st.set_page_config(
     page_title="IoT Zero-Day Attack Detector",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
+
 
 # =====================================================
 # SIDEBAR
@@ -36,9 +37,12 @@ uploaded = st.sidebar.file_uploader("📁 Upload CSV Input", type=["csv"])
 
 st.sidebar.markdown("---")
 st.sidebar.write("**Model:** Hybrid Autoencoder + XGBoost")
-st.sidebar.write("**Dataset:** TON_IoT (Modbus)")
+st.sidebar.write("**Dataset:** TON_IoT (Telemetry/Modbus)")
 
-# Load model only once
+
+# =====================================================
+# LOAD MODEL (Cache)
+# =====================================================
 @st.cache_resource
 def load_detector():
     return HybridDetector()
@@ -58,30 +62,34 @@ st.caption("Hybrid Model = Autoencoder (Anomaly) + XGBoost (Classification)")
 # =====================================================
 if uploaded:
 
-    # 1. RAW DATA ==================================================
+    # ---------------------------------------------
+    # 1) RAW INPUT
+    # ---------------------------------------------
     st.header("📌 1. Raw Input Data")
     df_raw = pd.read_csv(uploaded)
-    st.dataframe(df_raw.head(), use_container_width=True)
+    st.dataframe(df_raw.head(10), use_container_width=True)
 
 
-
-    # 2. FEATURE ENGINEERING ======================================
-    st.header("✨ 2. Feature Engineering (27 derived features)")
+    # ---------------------------------------------
+    # 2) FEATURE ENGINEERING
+    # ---------------------------------------------
+    st.header("✨ 2. Feature Engineering (Derived features)")
 
     df_feat = build_features(df_raw)
 
-    # Select feature columns only
     feature_cols = [
         c for c in df_feat.columns
         if c not in ["date", "time", "label", "type", "date_time"]
     ]
+
     X = df_feat[feature_cols].values
 
-    st.dataframe(df_feat.head(), use_container_width=True)
+    st.dataframe(df_feat.head(10), use_container_width=True)
 
 
-
-    # 3. PREDICTION ===============================================
+    # ---------------------------------------------
+    # 3) PREDICT
+    # ---------------------------------------------
     st.header("🚨 3. Prediction Results")
 
     preds = detector.predict(X).astype(int)
@@ -89,21 +97,33 @@ if uploaded:
     df_feat["result"] = df_feat["prediction"].map({0: "NORMAL", 1: "ATTACK"})
 
 
-    # Colored Table — Streamlit hỗ trợ st.dataframe(style)
-    st.subheader("🔍 Detailed Classification Table")
+    # ---------------------------------------------
+    # 3A) Safe PREVIEW TABLE (colored)
+    # ---------------------------------------------
+    st.subheader("🔍 Preview (First 200 rows with color)")
 
     def highlight(row):
         color = "#ffcccc" if row["result"] == "ATTACK" else "#ccffcc"
-        return [f'background-color: {color}'] * len(row)
+        return [f"background-color: {color}"] * len(row)
+
+    preview = df_feat.head(200)
 
     st.dataframe(
-        df_feat.style.apply(highlight, axis=1),
+        preview.style.apply(highlight, axis=1),
         use_container_width=True
     )
 
 
+    # ---------------------------------------------
+    # 3B) FULL TABLE (no color)
+    # ---------------------------------------------
+    st.subheader("📄 Full Prediction Table (no color to avoid Streamlit limit)")
+    st.dataframe(df_feat, use_container_width=True)
 
-    # 4. SUMMARY ===================================================
+
+    # ---------------------------------------------
+    # 4) SUMMARY STATISTICS
+    # ---------------------------------------------
     st.header("📊 4. Summary Statistics")
 
     normal_count = int((preds == 0).sum())
@@ -114,8 +134,9 @@ if uploaded:
     c2.metric("🟥 ATTACK", attack_count)
 
 
-
-    # 5. PIE CHART ================================================
+    # ---------------------------------------------
+    # 5) PIE CHART
+    # ---------------------------------------------
     st.subheader("📈 Attack vs Normal Distribution")
 
     pie_df = pd.DataFrame({
@@ -129,25 +150,26 @@ if uploaded:
         values="Count",
         color="Type",
         color_discrete_map={"NORMAL": "green", "ATTACK": "red"},
-        title="Prediction Distribution"
+        title="Prediction Distribution",
     )
+
     st.plotly_chart(fig, use_container_width=True)
 
 
-
-    # 6. DOWNLOAD OUTPUT ==========================================
+    # ---------------------------------------------
+    # 6) DOWNLOAD OUTPUT
+    # ---------------------------------------------
     st.header("💾 5. Export Results")
 
     csv_out = df_feat.to_csv(index=False).encode("utf-8")
+
     st.download_button(
         "⬇ Download Prediction CSV",
         csv_out,
-        "prediction_output.csv",
+        "iot_prediction_output.csv",
         "text/csv"
     )
 
 
 else:
     st.info("⬆️ Hãy upload file CSV để hệ thống bắt đầu phân tích IoT anomaly.")
-
-
