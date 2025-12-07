@@ -8,15 +8,13 @@ from src.utils.paths import (
     SCALER_PATH, AE_MODEL_PATH, THRESHOLD_PATH, XGB_MODEL_PATH
 )
 
-
 class HybridDetector:
     def __init__(self, latent_dim=128):
         # Load scaler
         self.scaler = joblib.load(SCALER_PATH)
 
-        # Detect input dim automatically
-        dummy = np.zeros((1, 27), dtype=np.float32)   # số feature fixed
-        input_dim = dummy.shape[1]
+        # Auto detect số feature (27 features cố định)
+        input_dim = 27
 
         # Load AE model
         self.ae = DeepAE(input_dim=input_dim, latent_dim=latent_dim)
@@ -35,16 +33,17 @@ class HybridDetector:
         X_scaled = self.scaler.transform(X)
         X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
 
-        # autoencoder reconstruction
+        # AE reconstruction
         with torch.no_grad():
             recon = self.ae(X_tensor).numpy()
 
         mse = np.mean((X_scaled - recon) ** 2, axis=1)
         ae_flag = mse > self.threshold * 1.5
 
-        # latent vector -> xgb
+        # latent vector -> XGB
         z = self.ae.encode(X_tensor).detach().numpy()
         xgb_pred = self.xgb.predict(z)
 
+        # Hybrid rule
         final = np.where((ae_flag == 1) | (xgb_pred == 1), 1, 0)
         return final

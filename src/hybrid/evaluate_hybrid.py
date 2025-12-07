@@ -6,19 +6,22 @@ from src.utils.paths import TEST_PATH, TEST_LABEL_PATH
 
 def evaluate_hybrid():
 
+    # Load test data
     X = np.load(TEST_PATH)
     y_true = np.load(TEST_LABEL_PATH)
 
-    input_dim = X.shape[1]
-    model = HybridDetector(input_dim=input_dim, latent_dim=128)
+    # Không dùng input_dim nữa
+    model = HybridDetector(latent_dim=128)
 
+    # Dự đoán
     y_pred = model.predict(X)
 
-    print("\nConfusion Matrix:")
+    print("\n===== CONFUSION MATRIX =====")
     print(confusion_matrix(y_true, y_pred))
 
-    print("\nClassification Report:")
+    print("\n===== CLASSIFICATION REPORT =====")
     print(classification_report(y_true, y_pred))
+
 
 if __name__ == "__main__":
     evaluate_hybrid()
